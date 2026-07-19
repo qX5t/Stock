@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบเช็คสินค้าหมดอายุ</title>
+    <style>
+        :root {
+            --primary: #a8d5ba;
+            --bg: #f9fdfa;
+            --red: #ff8e8e;
+            --yellow: #fff59d;
+            --green: #c8e6c9;
+        }
+
+        body { font-family: 'Kanit', sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #2e7d32; }
+        
+        input, button { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        button { background: var(--primary); border: none; cursor: pointer; font-weight: bold; }
+        
+        .search-box { background: #eee; }
+        .item-card { padding: 15px; margin-bottom: 10px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; border-left: 8px solid #ccc; }
+        
+        .expired { background: var(--red); border-left-color: #d32f2f; }
+        .near-expiry { background: var(--yellow); border-left-color: #fbc02d; }
+        .safe { background: var(--green); border-left-color: #388e3c; }
+        
+        .actions button { width: auto; padding: 5px 10px; margin-left: 5px; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>📋 สต็อกสินค้า</h2>
+    <input type="text" id="name" placeholder="ชื่อสินค้า">
+    <input type="date" id="expiryDate">
+    <input type="number" id="qty" placeholder="จำนวน (ถ้ามี)">
+    <button onclick="addItem()">เพิ่มสินค้า</button>
+
+    <hr>
+    <input type="text" class="search-box" id="search" placeholder="🔍 ค้นหาสินค้า..." onkeyup="renderItems()">
+    <div id="list"></div>
+</div>
+
+<script>
+    let items = JSON.parse(localStorage.getItem('shopItems')) || [];
+
+    function addItem() {
+        const name = document.getElementById('name').value;
+        const expiryDate = document.getElementById('expiryDate').value;
+        const qty = document.getElementById('qty').value;
+
+        if (!name || !expiryDate) return alert('กรุณากรอกข้อมูลให้ครบ');
+
+        items.push({ id: Date.now(), name, expiryDate, qty });
+        saveAndRender();
+        document.getElementById('name').value = '';
+        document.getElementById('expiryDate').value = '';
+        document.getElementById('qty').value = '';
+    }
+
+    function deleteItem(id) {
+        items = items.filter(i => i.id !== id);
+        saveAndRender();
+    }
+
+    function saveAndRender() {
+        localStorage.setItem('shopItems', JSON.stringify(items));
+        renderItems();
+    }
+
+    function renderItems() {
+        const filter = document.getElementById('search').value.toLowerCase();
+        const listDiv = document.getElementById('list');
+        listDiv.innerHTML = '';
+
+        const today = new Date();
+        
+        // เรียงลำดับตามวันที่
+        const sortedItems = [...items].sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate));
+
+        sortedItems.filter(i => i.name.toLowerCase().includes(filter)).forEach(item => {
+            const exp = new Date(item.expiryDate);
+            const diffTime = exp - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            let statusClass = 'safe';
+            if (diffDays < 0) statusClass = 'expired';
+            else if (diffDays <= 7) statusClass = 'near-expiry';
+
+            const card = document.createElement('div');
+            card.className = `item-card ${statusClass}`;
+            card.innerHTML = `
+                <div>
+                    <strong>${item.name}</strong><br>
+                    หมดอายุ: ${item.expiryDate} ${item.qty ? `(${item.qty} ชิ้น)` : ''}
+                </div>
+                <div class="actions">
+                    <button onclick="deleteItem(${item.id})">ลบ</button>
+                </div>
+            `;
+            listDiv.appendChild(card);
+        });
+    }
+
+    renderItems();
+</script>
+</body>
+</html>
