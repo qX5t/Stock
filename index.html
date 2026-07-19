@@ -1,111 +1,80 @@
 <!DOCTYPE html>
-<html lang="th">
+<html lang="th" class="h-full bg-[#f4fcf7]">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบเช็คสินค้าหมดอายุ</title>
+    <title>ร้านธนภรรุ่งเรือง - ระบบเช็ควันหมดอายุ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --primary: #a8d5ba;
-            --bg: #f9fdfa;
-            --red: #ff8e8e;
-            --yellow: #fff59d;
-            --green: #c8e6c9;
-        }
-
-        body { font-family: 'Kanit', sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #333; }
-        .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        h2 { text-align: center; color: #2e7d32; }
-        
-        input, button { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
-        button { background: var(--primary); border: none; cursor: pointer; font-weight: bold; }
-        
-        .search-box { background: #eee; }
-        .item-card { padding: 15px; margin-bottom: 10px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; border-left: 8px solid #ccc; }
-        
-        .expired { background: var(--red); border-left-color: #d32f2f; }
-        .near-expiry { background: var(--yellow); border-left-color: #fbc02d; }
-        .safe { background: var(--green); border-left-color: #388e3c; }
-        
-        .actions button { width: auto; padding: 5px 10px; margin-left: 5px; font-size: 12px; }
+        body { font-family: 'Sarabun', sans-serif; }
     </style>
 </head>
-<body>
+<body class="p-4 bg-[#f4fcf7] text-[#143d28]">
 
-<div class="container">
-    <h2>📋 สต็อกสินค้า</h2>
-    <input type="text" id="name" placeholder="ชื่อสินค้า">
-    <input type="date" id="expiryDate">
-    <input type="number" id="qty" placeholder="จำนวน (ถ้ามี)">
-    <button onclick="addItem()">เพิ่มสินค้า</button>
+    <div class="max-w-4xl mx-auto">
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl font-black">ร้านธนภรรุ่งเรือง</h1>
+            <p class="text-lg">ระบบเช็ควันหมดอายุสินค้า</p>
+        </header>
 
-    <hr>
-    <input type="text" class="search-box" id="search" placeholder="🔍 ค้นหาสินค้า..." onkeyup="renderItems()">
-    <div id="list"></div>
-</div>
+        <!-- ฟอร์มบันทึก -->
+        <div class="bg-white p-6 rounded-3xl shadow-lg border-2 border-green-100 mb-8">
+            <form id="productForm" class="space-y-4">
+                <input type="text" id="productName" placeholder="ชื่อสินค้า..." class="w-full p-4 rounded-2xl border-2 border-green-200" required>
+                <input type="date" id="productExpiry" class="w-full p-4 rounded-2xl border-2 border-green-200" required>
+                <button type="submit" class="w-full bg-green-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-green-700">บันทึกสินค้า</button>
+            </form>
+        </div>
 
-<script>
-    let items = JSON.parse(localStorage.getItem('shopItems')) || [];
+        <!-- รายการสินค้า -->
+        <div id="productList" class="space-y-4">
+            <!-- ข้อมูลจะแสดงที่นี่ -->
+        </div>
+    </div>
 
-    function addItem() {
-        const name = document.getElementById('name').value;
-        const expiryDate = document.getElementById('expiryDate').value;
-        const qty = document.getElementById('qty').value;
+    <script>
+        let products = JSON.parse(localStorage.getItem('myProducts')) || [];
 
-        if (!name || !expiryDate) return alert('กรุณากรอกข้อมูลให้ครบ');
+        const form = document.getElementById('productForm');
+        const list = document.getElementById('productList');
 
-        items.push({ id: Date.now(), name, expiryDate, qty });
-        saveAndRender();
-        document.getElementById('name').value = '';
-        document.getElementById('expiryDate').value = '';
-        document.getElementById('qty').value = '';
-    }
+        function render() {
+            list.innerHTML = '';
+            products.forEach((p, index) => {
+                const div = document.createElement('div');
+                div.className = "bg-white p-5 rounded-2xl shadow border-l-8 border-green-500 flex justify-between items-center";
+                div.innerHTML = `
+                    <div>
+                        <div class="font-bold text-lg">${p.name}</div>
+                        <div class="text-sm text-gray-500">หมดอายุ: ${p.expiry}</div>
+                    </div>
+                    <button onclick="deleteProduct(${index})" class="text-red-500 font-bold">ลบ</button>
+                `;
+                list.appendChild(div);
+            });
+        }
 
-    function deleteItem(id) {
-        items = items.filter(i => i.id !== id);
-        saveAndRender();
-    }
-
-    function saveAndRender() {
-        localStorage.setItem('shopItems', JSON.stringify(items));
-        renderItems();
-    }
-
-    function renderItems() {
-        const filter = document.getElementById('search').value.toLowerCase();
-        const listDiv = document.getElementById('list');
-        listDiv.innerHTML = '';
-
-        const today = new Date();
-        
-        // เรียงลำดับตามวันที่
-        const sortedItems = [...items].sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate));
-
-        sortedItems.filter(i => i.name.toLowerCase().includes(filter)).forEach(item => {
-            const exp = new Date(item.expiryDate);
-            const diffTime = exp - today;
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-            let statusClass = 'safe';
-            if (diffDays < 0) statusClass = 'expired';
-            else if (diffDays <= 7) statusClass = 'near-expiry';
-
-            const card = document.createElement('div');
-            card.className = `item-card ${statusClass}`;
-            card.innerHTML = `
-                <div>
-                    <strong>${item.name}</strong><br>
-                    หมดอายุ: ${item.expiryDate} ${item.qty ? `(${item.qty} ชิ้น)` : ''}
-                </div>
-                <div class="actions">
-                    <button onclick="deleteItem(${item.id})">ลบ</button>
-                </div>
-            `;
-            listDiv.appendChild(card);
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const newProduct = {
+                name: document.getElementById('productName').value,
+                expiry: document.getElementById('productExpiry').value
+            };
+            products.push(newProduct);
+            localStorage.setItem('myProducts', JSON.stringify(products));
+            form.reset();
+            render();
         });
-    }
 
-    renderItems();
-</script>
+        function deleteProduct(index) {
+            products.splice(index, 1);
+            localStorage.setItem('myProducts', JSON.stringify(products));
+            render();
+        }
+
+        render();
+    </script>
 </body>
 </html>
